@@ -1,33 +1,29 @@
 import streamlit as st
+import openai
 import requests
 import json
 import re
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 from textblob import TextBlob
-import openai
 
-# --------------- CONFIGURATION ---------------
-YOUTUBE_API_KEY = "YOUR_YOUTUBE_API_KEY"
-GOOGLE_NEWS_API_KEY = "YOUR_GOOGLE_NEWS_API_KEY"
-OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
+# -------- Load API Keys from Streamlit Secrets --------
+YOUTUBE_API_KEY = st.secrets["api_keys"]["YOUTUBE_API_KEY"]
+GOOGLE_NEWS_API_KEY = st.secrets["api_keys"]["GOOGLE_NEWS_API_KEY"]
+OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
+
+# Initialize APIs
 openai.api_key = OPENAI_API_KEY
-
-# Initialize YouTube API client
 youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
-
-# --------------- FUNCTION TO EXTRACT VIDEO ID FROM LINK ---------------
+# -------- Function to Extract Video ID from Link --------
 def extract_video_id(url):
     match = re.search(r"(?<=v=)[^&#]+", url) or re.search(r"(?<=youtu.be/)[^&#]+", url)
     return match.group(0) if match else None
 
-
-# --------------- FUNCTION TO FETCH VIDEO METADATA ---------------
+# -------- Fetch YouTube Video Metadata --------
 def get_video_metadata(video_id):
-    request = youtube.videos().list(
-        part="snippet", id=video_id
-    )
+    request = youtube.videos().list(part="snippet", id=video_id)
     response = request.execute()
 
     if "items" not in response or not response["items"]:
@@ -40,8 +36,7 @@ def get_video_metadata(video_id):
         "tags": video_data.get("tags", []),
     }
 
-
-# --------------- FUNCTION TO FETCH VIDEO TRANSCRIPT ---------------
+# -------- Fetch YouTube Video Transcript --------
 def get_video_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
@@ -50,8 +45,7 @@ def get_video_transcript(video_id):
     except:
         return "Transcript not available."
 
-
-# --------------- FETCH GOOGLE NEWS ARTICLES ---------------
+# -------- Fetch Google News Articles --------
 def fetch_google_news(query):
     url = f"https://newsapi.org/v2/everything?q={query}&apiKey={GOOGLE_NEWS_API_KEY}"
     response = requests.get(url).json()
@@ -61,8 +55,7 @@ def fetch_google_news(query):
 
     return []
 
-
-# --------------- CHECK FOR SIMILARITY ---------------
+# -------- Check for Similarity Using NLP --------
 def check_similarity(video_content, news_titles):
     similarities = []
     for news_title in news_titles:
@@ -71,11 +64,11 @@ def check_similarity(video_content, news_titles):
             similarities.append(news_title)
     return similarities
 
-
-# --------------- OPENAI FUNCTION TO GENERATE TITLE, DESCRIPTION, TAGS ---------------
+# -------- OpenAI AI-Powered Suggestions --------
 def generate_openai_suggestions(video_title, transcript, trending_topics):
     prompt = f"""
-    Given a YouTube video with the title: '{video_title}', and the following transcript snippet: '{transcript[:500]}', optimize the video metadata based on these trending news topics: {trending_topics}.
+    Given a YouTube video with the title: '{video_title}', and the following transcript snippet: '{transcript[:500]}',
+    optimize the video metadata based on these trending news topics: {trending_topics}.
 
     Suggest:
     1. A new click-worthy title that aligns with trending topics.
@@ -97,8 +90,7 @@ def generate_openai_suggestions(video_title, transcript, trending_topics):
     except:
         return None
 
-
-# --------------- UPDATE VIDEO METADATA ---------------
+# -------- Update YouTube Video Metadata --------
 def update_video_metadata(video_id, new_title, new_description, new_tags):
     request = youtube.videos().update(
         part="snippet",
@@ -114,8 +106,7 @@ def update_video_metadata(video_id, new_title, new_description, new_tags):
     response = request.execute()
     return response
 
-
-# --------------- STREAMLIT UI ---------------
+# -------- Streamlit UI --------
 st.title("🔄 AI-Powered YouTube Re-indexation Bot")
 
 video_url = st.text_input("Enter YouTube Video URL:")
