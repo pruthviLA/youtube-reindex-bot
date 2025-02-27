@@ -1,0 +1,9 @@
+streamlit
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+googleapiclient
+youtube_transcript_api
+requests
+openai
+textblob
